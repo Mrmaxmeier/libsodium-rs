@@ -2179,6 +2179,168 @@ pub mod salsa20 {
     }
 }
 
+/// Keccak-f[1600] permutation
+///
+/// This module provides direct access to the Keccak-f[1600] permutation, the core
+/// building block of SHA-3, SHAKE, and TurboSHAKE.
+///
+/// This is a low-level API. For most applications, use the high-level XOF API
+/// (`crypto_xof::shake128`, `crypto_xof::turboshake128`, etc.) instead.
+///
+/// ## Sponge Construction Pattern
+///
+/// 1. Initialize the state
+/// 2. Absorb data by XORing it into the state, applying the permutation between blocks
+/// 3. Squeeze output by extracting bytes from the state, applying the permutation between blocks
+///
+/// ## Example
+///
+/// ```rust
+/// use libsodium_rs::crypto_core::keccak1600;
+///
+/// // Initialize state
+/// let mut state = keccak1600::State::new();
+///
+/// // Absorb: XOR data into state
+/// let input = [0u8; 136];
+/// state.xor_bytes(&input, 0);
+///
+/// // Apply the permutation
+/// state.permute_24();
+///
+/// // Squeeze: extract output from state
+/// let mut output = [0u8; 32];
+/// state.extract_bytes(&mut output, 0);
+/// ```
+pub mod keccak1600 {
+    /// Size of the state in bytes (224)
+    ///
+    /// The internal Keccak state is 200 bytes (1600 bits), with additional bytes
+    /// reserved for metadata and alignment.
+    pub const STATEBYTES: usize = 224;
+
+    /// Returns the state size in bytes
+    pub fn statebytes() -> usize {
+        unsafe { libsodium_sys::crypto_core_keccak1600_statebytes() }
+    }
+
+    /// Keccak-f[1600] state
+    ///
+    /// Represents the internal state of the Keccak permutation. The state must
+    /// be initialized before use and can be reused after reinitializing.
+    pub struct State {
+        state: libsodium_sys::crypto_core_keccak1600_state,
+    }
+
+    impl State {
+        /// Creates and initializes a new Keccak state to all zeros
+        pub fn new() -> Self {
+            let mut state = Self {
+                state: unsafe { std::mem::zeroed() },
+            };
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_init(&mut state.state);
+            }
+            state
+        }
+
+        /// Reinitializes the state to all zeros
+        pub fn init(&mut self) {
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_init(&mut self.state);
+            }
+        }
+
+        /// XORs bytes into the state at the given offset
+        ///
+        /// This is the absorb operation in the sponge construction.
+        ///
+        /// # Arguments
+        ///
+        /// * `bytes` - Input data to absorb
+        /// * `offset` - Byte offset within the state (0-199)
+        ///
+        /// # Panics
+        ///
+        /// Panics if `offset + bytes.len() > 200`
+        pub fn xor_bytes(&mut self, bytes: &[u8], offset: usize) {
+            assert!(
+                offset + bytes.len() <= 200,
+                "offset + length must be <= 200"
+            );
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_xor_bytes(
+                    &mut self.state,
+                    bytes.as_ptr(),
+                    offset,
+                    bytes.len(),
+                );
+            }
+        }
+
+        /// Extracts bytes from the state at the given offset
+        ///
+        /// This is the squeeze operation in the sponge construction.
+        ///
+        /// # Arguments
+        ///
+        /// * `bytes` - Output buffer to fill
+        /// * `offset` - Byte offset within the state (0-199)
+        ///
+        /// # Panics
+        ///
+        /// Panics if `offset + bytes.len() > 200`
+        pub fn extract_bytes(&self, bytes: &mut [u8], offset: usize) {
+            assert!(
+                offset + bytes.len() <= 200,
+                "offset + length must be <= 200"
+            );
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_extract_bytes(
+                    &self.state,
+                    bytes.as_mut_ptr(),
+                    offset,
+                    bytes.len(),
+                );
+            }
+        }
+
+        /// Applies the Keccak-f[1600] permutation with 24 rounds
+        ///
+        /// This is the full-strength permutation used by SHAKE128 and SHAKE256.
+        pub fn permute_24(&mut self) {
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_permute_24(&mut self.state);
+            }
+        }
+
+        /// Applies the Keccak-p[1600,12] permutation with 12 rounds
+        ///
+        /// This reduced-round variant is used by TurboSHAKE128 and TurboSHAKE256
+        /// for approximately 2x better performance while maintaining the same
+        /// security claims.
+        pub fn permute_12(&mut self) {
+            unsafe {
+                libsodium_sys::crypto_core_keccak1600_permute_12(&mut self.state);
+            }
+        }
+    }
+
+    impl Default for State {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl Clone for State {
+        fn clone(&self) -> Self {
+            let mut new_state = Self::new();
+            new_state.state = self.state;
+            new_state
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2516,5 +2678,173 @@ mod tests {
         // Test invalid lengths
         assert!(salsa208::salsa208(&[0u8; 1], &key, None).is_err());
         assert!(salsa208::salsa208(&input, &[0u8; 1], None).is_err());
+    }
+
+    #[test]
+    fn test_keccak1600_constants() {
+        assert_eq!(keccak1600::STATEBYTES, 224);
+        assert_eq!(keccak1600::statebytes(), 224);
+    }
+
+    #[test]
+    fn test_keccak1600_init() {
+        let state = keccak1600::State::new();
+        // Just verify it doesn't panic
+        let _ = state;
+    }
+
+    #[test]
+    fn test_keccak1600_xor_and_extract() {
+        let mut state = keccak1600::State::new();
+
+        // XOR some data into the state
+        let input = [0x42u8; 136];
+        state.xor_bytes(&input, 0);
+
+        // Extract data from the state
+        let mut output = [0u8; 136];
+        state.extract_bytes(&mut output, 0);
+
+        // The output should match what we XORed in (since state was zero)
+        assert_eq!(&output[..], &input[..]);
+    }
+
+    #[test]
+    fn test_keccak1600_permute_24() {
+        let mut state = keccak1600::State::new();
+
+        // XOR some data
+        let input = [0x01u8; 136];
+        state.xor_bytes(&input, 0);
+
+        // Extract before permutation
+        let mut before = [0u8; 136];
+        state.extract_bytes(&mut before, 0);
+
+        // Apply permutation
+        state.permute_24();
+
+        // Extract after permutation
+        let mut after = [0u8; 136];
+        state.extract_bytes(&mut after, 0);
+
+        // State should be different after permutation
+        assert_ne!(&before[..], &after[..]);
+    }
+
+    #[test]
+    fn test_keccak1600_permute_12() {
+        let mut state = keccak1600::State::new();
+
+        // XOR some data
+        let input = [0x01u8; 136];
+        state.xor_bytes(&input, 0);
+
+        // Extract before permutation
+        let mut before = [0u8; 136];
+        state.extract_bytes(&mut before, 0);
+
+        // Apply reduced-round permutation
+        state.permute_12();
+
+        // Extract after permutation
+        let mut after = [0u8; 136];
+        state.extract_bytes(&mut after, 0);
+
+        // State should be different after permutation
+        assert_ne!(&before[..], &after[..]);
+    }
+
+    #[test]
+    fn test_keccak1600_permute_24_vs_12() {
+        // 24 rounds and 12 rounds should produce different results
+        let mut state24 = keccak1600::State::new();
+        let mut state12 = keccak1600::State::new();
+
+        let input = [0x01u8; 136];
+        state24.xor_bytes(&input, 0);
+        state12.xor_bytes(&input, 0);
+
+        state24.permute_24();
+        state12.permute_12();
+
+        let mut out24 = [0u8; 136];
+        let mut out12 = [0u8; 136];
+        state24.extract_bytes(&mut out24, 0);
+        state12.extract_bytes(&mut out12, 0);
+
+        assert_ne!(&out24[..], &out12[..]);
+    }
+
+    #[test]
+    fn test_keccak1600_clone() {
+        let mut state1 = keccak1600::State::new();
+        let input = [0x42u8; 100];
+        state1.xor_bytes(&input, 0);
+        state1.permute_24();
+
+        let state2 = state1.clone();
+
+        let mut out1 = [0u8; 100];
+        let mut out2 = [0u8; 100];
+        state1.extract_bytes(&mut out1, 0);
+        state2.extract_bytes(&mut out2, 0);
+
+        assert_eq!(&out1[..], &out2[..]);
+    }
+
+    #[test]
+    fn test_keccak1600_reinit() {
+        let mut state = keccak1600::State::new();
+
+        // XOR and permute
+        let input = [0x42u8; 100];
+        state.xor_bytes(&input, 0);
+        state.permute_24();
+
+        // Reinitialize
+        state.init();
+
+        // Should be back to zeros
+        let mut output = [0u8; 100];
+        state.extract_bytes(&mut output, 0);
+        assert!(output.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_keccak1600_offset() {
+        let mut state = keccak1600::State::new();
+
+        // XOR at different offsets
+        state.xor_bytes(&[0x01], 0);
+        state.xor_bytes(&[0x02], 50);
+        state.xor_bytes(&[0x03], 100);
+
+        // Extract and verify
+        let mut out = [0u8; 1];
+        state.extract_bytes(&mut out, 0);
+        assert_eq!(out[0], 0x01);
+
+        state.extract_bytes(&mut out, 50);
+        assert_eq!(out[0], 0x02);
+
+        state.extract_bytes(&mut out, 100);
+        assert_eq!(out[0], 0x03);
+    }
+
+    #[test]
+    #[should_panic(expected = "offset + length must be <= 200")]
+    fn test_keccak1600_xor_overflow() {
+        let mut state = keccak1600::State::new();
+        let data = [0u8; 10];
+        state.xor_bytes(&data, 195); // 195 + 10 > 200
+    }
+
+    #[test]
+    #[should_panic(expected = "offset + length must be <= 200")]
+    fn test_keccak1600_extract_overflow() {
+        let state = keccak1600::State::new();
+        let mut data = [0u8; 10];
+        state.extract_bytes(&mut data, 195); // 195 + 10 > 200
     }
 }
