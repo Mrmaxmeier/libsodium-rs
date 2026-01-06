@@ -223,7 +223,9 @@ pub mod shake128 {
             };
 
             if result != 0 {
-                return Err(SodiumError::OperationError("SHAKE128 squeeze failed".into()));
+                return Err(SodiumError::OperationError(
+                    "SHAKE128 squeeze failed".into(),
+                ));
             }
 
             Ok(output)
@@ -242,7 +244,9 @@ pub mod shake128 {
             };
 
             if result != 0 {
-                return Err(SodiumError::OperationError("SHAKE128 squeeze failed".into()));
+                return Err(SodiumError::OperationError(
+                    "SHAKE128 squeeze failed".into(),
+                ));
             }
 
             Ok(())
@@ -408,7 +412,9 @@ pub mod shake256 {
             };
 
             if result != 0 {
-                return Err(SodiumError::OperationError("SHAKE256 squeeze failed".into()));
+                return Err(SodiumError::OperationError(
+                    "SHAKE256 squeeze failed".into(),
+                ));
             }
 
             Ok(output)
@@ -427,7 +433,9 @@ pub mod shake256 {
             };
 
             if result != 0 {
-                return Err(SodiumError::OperationError("SHAKE256 squeeze failed".into()));
+                return Err(SodiumError::OperationError(
+                    "SHAKE256 squeeze failed".into(),
+                ));
             }
 
             Ok(())
@@ -554,8 +562,7 @@ pub mod turboshake128 {
                 squeezed: false,
             };
 
-            let result =
-                unsafe { libsodium_sys::crypto_xof_turboshake128_init(&mut state.state) };
+            let result = unsafe { libsodium_sys::crypto_xof_turboshake128_init(&mut state.state) };
 
             if result != 0 {
                 return Err(SodiumError::OperationError(
@@ -800,8 +807,7 @@ pub mod turboshake256 {
                 squeezed: false,
             };
 
-            let result =
-                unsafe { libsodium_sys::crypto_xof_turboshake256_init(&mut state.state) };
+            let result = unsafe { libsodium_sys::crypto_xof_turboshake256_init(&mut state.state) };
 
             if result != 0 {
                 return Err(SodiumError::OperationError(

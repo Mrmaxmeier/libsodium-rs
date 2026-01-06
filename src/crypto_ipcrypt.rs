@@ -254,11 +254,7 @@ pub fn bytes_to_ipv4(bytes: &[u8; BYTES]) -> Option<[u8; 4]> {
 pub fn parse_ip(ip: &str) -> Result<[u8; BYTES], SodiumError> {
     let mut bin = [0u8; BYTES];
     let ret = unsafe {
-        libsodium_sys::sodium_ip2bin(
-            bin.as_mut_ptr(),
-            ip.as_ptr() as *const i8,
-            ip.len(),
-        )
+        libsodium_sys::sodium_ip2bin(bin.as_mut_ptr(), ip.as_ptr() as *const i8, ip.len())
     };
     if ret == 0 {
         Ok(bin)
@@ -289,13 +285,7 @@ pub fn parse_ip(ip: &str) -> Result<[u8; BYTES], SodiumError> {
 /// ```
 pub fn format_ip(bin: &[u8; BYTES]) -> String {
     let mut buf = [0i8; IP_MAXLEN];
-    let ptr = unsafe {
-        libsodium_sys::sodium_bin2ip(
-            buf.as_mut_ptr(),
-            IP_MAXLEN,
-            bin.as_ptr(),
-        )
-    };
+    let ptr = unsafe { libsodium_sys::sodium_bin2ip(buf.as_mut_ptr(), IP_MAXLEN, bin.as_ptr()) };
     if ptr.is_null() {
         // This shouldn't happen for valid 16-byte input, but handle it anyway
         String::new()
@@ -323,11 +313,7 @@ pub fn format_ip(bin: &[u8; BYTES]) -> String {
 pub fn encrypt(input: &[u8; BYTES], key: &Key) -> [u8; BYTES] {
     let mut output = [0u8; BYTES];
     unsafe {
-        libsodium_sys::crypto_ipcrypt_encrypt(
-            output.as_mut_ptr(),
-            input.as_ptr(),
-            key.0.as_ptr(),
-        );
+        libsodium_sys::crypto_ipcrypt_encrypt(output.as_mut_ptr(), input.as_ptr(), key.0.as_ptr());
     }
     output
 }
@@ -345,11 +331,7 @@ pub fn encrypt(input: &[u8; BYTES], key: &Key) -> [u8; BYTES] {
 pub fn decrypt(input: &[u8; BYTES], key: &Key) -> [u8; BYTES] {
     let mut output = [0u8; BYTES];
     unsafe {
-        libsodium_sys::crypto_ipcrypt_decrypt(
-            output.as_mut_ptr(),
-            input.as_ptr(),
-            key.0.as_ptr(),
-        );
+        libsodium_sys::crypto_ipcrypt_decrypt(output.as_mut_ptr(), input.as_ptr(), key.0.as_ptr());
     }
     output
 }
@@ -533,9 +515,11 @@ pub mod nd {
     pub fn decrypt_str(hex: &str, key: &super::Key) -> Result<String, SodiumError> {
         let bytes = crate::utils::hex2bin(hex)?;
         if bytes.len() != OUTPUTBYTES {
-            return Err(SodiumError::InvalidInput(
-                format!("expected {} bytes, got {}", OUTPUTBYTES, bytes.len())
-            ));
+            return Err(SodiumError::InvalidInput(format!(
+                "expected {} bytes, got {}",
+                OUTPUTBYTES,
+                bytes.len()
+            )));
         }
         let mut input = [0u8; OUTPUTBYTES];
         input.copy_from_slice(&bytes);
@@ -552,9 +536,11 @@ pub mod nd {
     pub fn from_hex(hex: &str) -> Result<[u8; OUTPUTBYTES], SodiumError> {
         let bytes = crate::utils::hex2bin(hex)?;
         if bytes.len() != OUTPUTBYTES {
-            return Err(SodiumError::InvalidInput(
-                format!("expected {} bytes, got {}", OUTPUTBYTES, bytes.len())
-            ));
+            return Err(SodiumError::InvalidInput(format!(
+                "expected {} bytes, got {}",
+                OUTPUTBYTES,
+                bytes.len()
+            )));
         }
         let mut output = [0u8; OUTPUTBYTES];
         output.copy_from_slice(&bytes);
@@ -738,9 +724,11 @@ pub mod ndx {
     pub fn decrypt_str(hex: &str, key: &Key) -> Result<String, SodiumError> {
         let bytes = crate::utils::hex2bin(hex)?;
         if bytes.len() != OUTPUTBYTES {
-            return Err(SodiumError::InvalidInput(
-                format!("expected {} bytes, got {}", OUTPUTBYTES, bytes.len())
-            ));
+            return Err(SodiumError::InvalidInput(format!(
+                "expected {} bytes, got {}",
+                OUTPUTBYTES,
+                bytes.len()
+            )));
         }
         let mut input = [0u8; OUTPUTBYTES];
         input.copy_from_slice(&bytes);
@@ -757,9 +745,11 @@ pub mod ndx {
     pub fn from_hex(hex: &str) -> Result<[u8; OUTPUTBYTES], SodiumError> {
         let bytes = crate::utils::hex2bin(hex)?;
         if bytes.len() != OUTPUTBYTES {
-            return Err(SodiumError::InvalidInput(
-                format!("expected {} bytes, got {}", OUTPUTBYTES, bytes.len())
-            ));
+            return Err(SodiumError::InvalidInput(format!(
+                "expected {} bytes, got {}",
+                OUTPUTBYTES,
+                bytes.len()
+            )));
         }
         let mut output = [0u8; OUTPUTBYTES];
         output.copy_from_slice(&bytes);
@@ -914,7 +904,9 @@ pub mod pfx {
 
 #[cfg(test)]
 mod tests {
-    use super::{ipv4_to_bytes, bytes_to_ipv4, encrypt, decrypt, Key, BYTES, KEYBYTES, nd, ndx, pfx};
+    use super::{
+        bytes_to_ipv4, decrypt, encrypt, ipv4_to_bytes, nd, ndx, pfx, Key, BYTES, KEYBYTES,
+    };
 
     #[test]
     fn test_ipv4_conversion() {
@@ -1126,7 +1118,7 @@ mod tests {
 
     #[test]
     fn test_parse_ip_ipv4() {
-        use super::{parse_ip, format_ip};
+        use super::{format_ip, parse_ip};
 
         let bin = parse_ip("192.0.2.1").unwrap();
         assert_eq!(format_ip(&bin), "192.0.2.1");
@@ -1140,7 +1132,7 @@ mod tests {
 
     #[test]
     fn test_parse_ip_ipv6() {
-        use super::{parse_ip, format_ip};
+        use super::{format_ip, parse_ip};
 
         let bin = parse_ip("2001:db8::1").unwrap();
         assert_eq!(format_ip(&bin), "2001:db8::1");
@@ -1169,7 +1161,7 @@ mod tests {
 
     #[test]
     fn test_encrypt_str_deterministic() {
-        use super::{encrypt_str, decrypt_str, Key};
+        use super::{decrypt_str, encrypt_str, Key};
 
         let key = Key::generate();
 
@@ -1260,7 +1252,7 @@ mod tests {
 
     #[test]
     fn test_format_ip_consistency_with_manual_conversion() {
-        use super::{parse_ip, format_ip, ipv4_to_bytes, bytes_to_ipv4};
+        use super::{bytes_to_ipv4, format_ip, ipv4_to_bytes, parse_ip};
 
         // Test that parse_ip produces the same result as ipv4_to_bytes for IPv4
         let manual = ipv4_to_bytes([192, 0, 2, 1]);
