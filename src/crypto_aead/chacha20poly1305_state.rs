@@ -130,7 +130,7 @@ pub fn encrypt_afternm(
 
     let ad = additional_data.unwrap_or(&[]);
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_encrypt(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_encrypt(
             ciphertext.as_mut_ptr(),
             &mut ciphertext_len,
             message.as_ptr(),
@@ -203,7 +203,7 @@ pub fn decrypt_afternm(
 
     let ad = additional_data.unwrap_or(&[]);
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_decrypt(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_decrypt(
             message.as_mut_ptr(),
             &mut message_len,
             std::ptr::null_mut(),
@@ -269,7 +269,7 @@ pub fn encrypt_detached_afternm(
 
     let ad = additional_data.unwrap_or(&[]);
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_encrypt_detached(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_encrypt_detached(
             ciphertext.as_mut_ptr(),
             tag.as_mut_ptr(),
             &mut tag_len,
@@ -344,7 +344,7 @@ pub fn decrypt_detached_afternm(
 
     let ad = additional_data.unwrap_or(&[]);
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_decrypt_detached(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_decrypt_detached(
             message.as_mut_ptr(),
             std::ptr::null_mut(),
             ciphertext.as_ptr(),

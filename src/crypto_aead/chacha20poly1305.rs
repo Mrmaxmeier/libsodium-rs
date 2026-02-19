@@ -126,12 +126,12 @@ use std::convert::{TryFrom, TryInto};
 ///
 /// The secret key is used for both encryption and decryption.
 /// It must be kept secret and should be generated using a secure random number generator.
-pub const KEYBYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_KEYBYTES as usize;
-/// Number of bytes in a nonce (8)
+pub const KEYBYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_ietf_KEYBYTES as usize;
+/// Number of bytes in a nonce (12)
 ///
 /// The nonce must be unique for each encryption operation with the same key.
 /// It can be public, but must never be reused with the same key.
-pub const NPUBBYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_NPUBBYTES as usize;
+pub const NPUBBYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_ietf_NPUBBYTES as usize;
 
 /// A nonce (number used once) for ChaCha20-Poly1305 operations
 ///
@@ -251,13 +251,13 @@ impl From<Nonce> for [u8; NPUBBYTES] {
 /// Number of bytes in an authentication tag (16)
 ///
 /// This is the size of the authentication tag that is added to the ciphertext.
-pub const ABYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_ABYTES as usize;
+pub const ABYTES: usize = libsodium_sys::crypto_aead_chacha20poly1305_ietf_ABYTES as usize;
 
 /// Maximum number of bytes in a message
 ///
 /// This is the maximum number of bytes that can be encrypted in a single message.
 pub fn messagebytes_max() -> usize {
-    unsafe { libsodium_sys::crypto_aead_chacha20poly1305_messagebytes_max() }
+    unsafe { libsodium_sys::crypto_aead_chacha20poly1305_ietf_messagebytes_max() }
 }
 
 /// A secret key for ChaCha20-Poly1305 encryption and decryption
@@ -366,7 +366,7 @@ impl From<Key> for [u8; KEYBYTES] {
 /// * The nonce can be public, but must never be reused with the same key
 /// * For random nonces, use `random::bytes(NPUBBYTES)`
 /// * The additional data is authenticated but not encrypted
-/// * ChaCha20-Poly1305 uses a 64-bit (8-byte) nonce, which is smaller than XChaCha20-Poly1305
+/// * ChaCha20-Poly1305 uses a 96-bit (12-byte) nonce, which is smaller than XChaCha20-Poly1305
 /// * For applications that need to encrypt many messages with the same key,
 ///   consider using XChaCha20-Poly1305 instead, which has a larger nonce size
 ///
@@ -415,7 +415,7 @@ pub fn encrypt(
     let mut ciphertext_len = 0u64;
 
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_encrypt(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_encrypt(
             ciphertext.as_mut_ptr(),
             &mut ciphertext_len,
             message.as_ptr(),
@@ -517,7 +517,7 @@ pub fn decrypt(
     let mut message_len = 0u64;
 
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_decrypt(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_decrypt(
             message.as_mut_ptr(),
             &mut message_len,
             std::ptr::null_mut(),
@@ -558,7 +558,7 @@ pub fn decrypt(
 /// * The nonce can be public, but must never be reused with the same key
 /// * For random nonces, use `random::bytes(NPUBBYTES)`
 /// * The additional data is authenticated but not encrypted
-/// * ChaCha20-Poly1305 uses a 64-bit (8-byte) nonce, which is smaller than XChaCha20-Poly1305
+/// * ChaCha20-Poly1305 uses a 96-bit (12-byte) nonce, which is smaller than XChaCha20-Poly1305
 /// * For applications that need to encrypt many messages with the same key,
 ///   consider using XChaCha20-Poly1305 instead, which has a larger nonce size
 ///
@@ -608,7 +608,7 @@ pub fn encrypt_detached(
     let mut tag_len = 0u64;
 
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_encrypt_detached(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_encrypt_detached(
             ciphertext.as_mut_ptr(),
             tag.as_mut_ptr(),
             &mut tag_len,
@@ -716,7 +716,7 @@ pub fn decrypt_detached(
     let mut message = vec![0u8; ciphertext.len()];
 
     let result = unsafe {
-        libsodium_sys::crypto_aead_chacha20poly1305_decrypt_detached(
+        libsodium_sys::crypto_aead_chacha20poly1305_ietf_decrypt_detached(
             message.as_mut_ptr(),
             std::ptr::null_mut(),
             ciphertext.as_ptr(),
